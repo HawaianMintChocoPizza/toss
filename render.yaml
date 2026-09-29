@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: toss-cross-analyzer
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -b 0.0.0.0:$PORT --workers 1 --threads 100 --timeout 0 app:app
+    healthCheckPath: /healthz
+    envVars:
+      - key: TOSS_CLIENT_ID
+        sync: false
+      - key: TOSS_CLIENT_SECRET
+        sync: false
+      - key: ALLOW_DEMO
+        value: "false"
+      - key: MAX_REALTIME_SYMBOLS
+        value: "90"
+      - key: MAX_BROWSER_WS_CLIENTS
+        value: "250"
+      - key: SNAPSHOT_CACHE_SECONDS_1M
+        value: "5"
+      - key: SNAPSHOT_CACHE_SECONDS_1D
+        value: "15"
+      - key: SNAPSHOT_MIN_INTERVAL_SECONDS
+        value: "0.12"
+      - key: MAX_MARKET_CACHE_ENTRIES
+        value: "512"

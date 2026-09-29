@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>토스증권 Open API 차트 분석 프로</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Pretendard:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=4">
+  <!-- TradingView Lightweight Charts -->
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+      <div class="nav-left">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 13.5L8.5 8L13 12.5L21 4.5" stroke="#3182F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M16 4.5H21V9.5" stroke="#3182F6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3 20H21" stroke="#4E5968" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <span class="logo-title">TOSS INVEST <span>PRO</span></span>
+        </div>
+        <div class="stock-search-wrap">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="symbolInput" placeholder="종목명 또는 코드 검색 (예: 카카오, 005930, AAPL)" autocomplete="off">
+          <button id="searchBtn" class="btn-search">조회</button>
+          <div class="search-dropdown" id="searchDropdown"></div>
+        </div>
+        <div class="preset-chips" id="presetChips">
+          <button class="chip active" data-symbol="005930">삼성전자</button>
+          <button class="chip" data-symbol="000660">SK하이닉스</button>
+          <button class="chip" data-symbol="005380">현대차</button>
+          <button class="chip" data-symbol="035420">NAVER</button>
+          <button class="chip" data-symbol="086520">에코프로</button>
+          <button class="chip chip-us" data-symbol="AAPL">AAPL</button>
+          <button class="chip chip-us" data-symbol="NVDA">NVDA</button>
+          <button class="chip chip-us" data-symbol="TSLA">TSLA</button>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <div class="interval-selector">
+          <button class="int-btn active" data-interval="1d">일봉 (1D)</button>
+          <button class="int-btn" data-interval="1m">1분봉 (1M)</button>
+        </div>
+        <div class="status-badge" id="apiStatusBadge" title="실시간 시세는 서버에서 토스증권 Open API로 제공합니다.">
+          <span class="dot"></span>
+          <span class="status-text">상태 확인 중...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+      <!-- Left / Center Chart Section -->
+      <section class="chart-section">
+        <!-- Stock Summary Header -->
+        <div class="stock-header">
+          <div class="stock-title-row">
+            <h1 class="stock-name" id="displayStockName">삼성전자</h1>
+            <span class="stock-symbol" id="displayStockSymbol">005930</span>
+            <span class="market-tag" id="displayMarketTag">KRX</span>
+          </div>
+          <div class="stock-price-row">
+            <span class="stock-price" id="displayStockPrice">75,000</span>
+            <span class="stock-currency" id="displayCurrency">KRW</span>
+            <span class="stock-change" id="displayStockChange">+1,500 (+2.04%)</span>
+          </div>
+        </div>
+
+        <!-- Indicator Toggles Toolbar -->
+        <div class="indicator-bar">
+          <div class="indicator-group">
+            <span class="group-label">이동평균선(MA):</span>
+            <label class="ind-pill pill-ma5">
+              <input type="checkbox" id="toggleMA5" checked>
+              <span class="color-dot dot-ma5"></span> 5일선
+            </label>
+            <label class="ind-pill pill-ma20">
+              <input type="checkbox" id="toggleMA20" checked>
+              <span class="color-dot dot-ma20"></span> 20일선 (생명선)
+            </label>
+            <label class="ind-pill pill-ma60">
+              <input type="checkbox" id="toggleMA60" checked>
+              <span class="color-dot dot-ma60"></span> 60일선 (수급선)
+            </label>
+            <label class="ind-pill pill-ma120">
+              <input type="checkbox" id="toggleMA120" checked>
+              <span class="color-dot dot-ma120"></span> 120일선 (경기선)
+            </label>
+          </div>
+          <div class="indicator-group">
+            <span class="group-label">매매 신호:</span>
+            <label class="ind-pill pill-cross">
+              <input type="checkbox" id="toggleCrossMarkers" checked>
+              <span class="cross-icon">★</span> 골든/데드크로스 마커
+            </label>
+            <label class="ind-pill">
+              <input type="checkbox" id="toggleRSI" checked>
+              RSI (14)
+            </label>
+          </div>
+        </div>
+
+        <!-- Chart Viewports -->
+        <div class="charts-wrapper">
+          <div id="mainChart" class="chart-canvas"></div>
+          <div id="volumeChart" class="chart-canvas sub-chart"></div>
+          <div id="rsiChart" class="chart-canvas sub-chart"></div>
+          <div id="chartTooltip" class="chart-tooltip"></div>
+          <div id="loadingOverlay" class="loading-overlay">
+            <div class="spinner"></div>
+            <span>토스증권 시세 데이터를 불러오는 중...</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Analysis Sidebar -->
+      <aside class="sidebar">
+        <!-- Diagnosis Card -->
+        <div class="card diagnosis-card">
+          <div class="card-header">
+            <h3>📈 종합 기술적 분석 진단</h3>
+            <span class="badge" id="trendBadge">분석중</span>
+          </div>
+          <div class="card-body">
+            <div class="diag-item">
+              <span class="diag-label">이평선 배열</span>
+              <span class="diag-val" id="diagArrangement">-</span>
+            </div>
+            <div class="diag-item">
+              <span class="diag-label">최근 교차 신호</span>
+              <span class="diag-val highlight" id="diagLastCross">-</span>
+            </div>
+            <div class="diag-item">
+              <span class="diag-label">RSI(14) 강도</span>
+              <span class="diag-val" id="diagRSI">-</span>
+            </div>
+            <div class="diag-item">
+              <span class="diag-label">20일 이격도</span>
+              <span class="diag-val" id="diagDisparity">-</span>
+            </div>
+
+            <div class="signal-alert-box" id="signalAlertBox">
+              <div class="alert-icon" id="alertIcon">⚡</div>
+              <div class="alert-content">
+                <div class="alert-title" id="alertTitle">추세 판단</div>
+                <div class="alert-desc" id="alertDesc">데이터를 분석하고 있습니다.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Moving Average Price Summary Card -->
+        <div class="card ma-price-card">
+          <div class="card-header">
+            <h3>📊 현재 이동평균선 수치</h3>
+          </div>
+          <div class="card-body ma-grid">
+            <div class="ma-box box-ma5">
+              <span class="ma-title">MA 5</span>
+              <span class="ma-value" id="valMA5">-</span>
+            </div>
+            <div class="ma-box box-ma20">
+              <span class="ma-title">MA 20</span>
+              <span class="ma-value" id="valMA20">-</span>
+            </div>
+            <div class="ma-box box-ma60">
+              <span class="ma-title">MA 60</span>
+              <span class="ma-value" id="valMA60">-</span>
+            </div>
+            <div class="ma-box box-ma120">
+              <span class="ma-title">MA 120</span>
+              <span class="ma-value" id="valMA120">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Golden / Dead Cross Signal Log -->
+        <div class="card signal-history-card">
+          <div class="card-header">
+            <h3>🔔 최근 골든/데드크로스 내역</h3>
+            <span class="badge-count" id="crossCount">0건</span>
+          </div>
+          <div class="card-body signal-list-wrap">
+            <div class="signal-list" id="signalList">
+              <div class="empty-state">신호 내역이 없습니다.</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="app.js?v=7"></script>
+</body>
+</html>
